@@ -1,0 +1,10 @@
+{
+  "app": "chor-anstimmen",
+  "version": 1,
+  "stimmton_a4": 440,
+  "lieder": [
+    { "name": "Beispiel in C-Dur", "tenor1": "E4", "tenor2": "C4", "bass1": "G3", "bass2": "C3", "bemerkung": "C-Dur, Grundakkord" },
+    { "name": "Beispiel in D-Dur", "tenor1": "Fis4", "tenor2": "D4", "bass1": "A3", "bass2": "D3" },
+    { "name": "Beispiel in B-Dur", "tenor1": "D4", "tenor2": "B3", "bass1": "F3", "bass2": "B2", "bemerkung": "B = B♭ (deutsche Notation)" }
+  ]
+}

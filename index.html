@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f3a5f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Chor anstimmen</title>
+<style>
+  :root {
+    --bg: #14202e; --card: #1f3a5f; --card2: #284a75; --fg: #f1f5fb; --muted: #a9b8cc;
+    --accent: #f0b429; --danger: #d64545; --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 17px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top));
+    background: var(--card); box-shadow: 0 2px 8px #0006; }
+  header h1 { flex: 1; margin: 0; font-size: 1.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  main { max-width: 640px; margin: 0 auto; padding: 14px 14px 40px; }
+  button, select, input { font: inherit; color: inherit; }
+  button { border: 0; border-radius: var(--radius); background: var(--card2); padding: 14px 16px;
+    cursor: pointer; min-height: 52px; touch-action: manipulation; }
+  button:active { filter: brightness(1.25); }
+  button.primary { background: var(--accent); color: #1b1b1b; font-weight: 700; }
+  button.danger { background: var(--danger); }
+  button.icon { background: transparent; min-height: 40px; min-width: 40px; padding: 4px 10px; font-size: 1.5rem; }
+  .hidden { visibility: hidden; }
+  .bar { display: flex; gap: 10px; margin-top: 12px; }
+  .bar > * { flex: 1; }
+  .big { width: 100%; margin-top: 16px; font-size: 1.3rem; min-height: 68px; }
+  input[type=search], input[type=text], input[type=number], select {
+    width: 100%; padding: 12px 14px; border-radius: var(--radius); border: 1px solid #3c5a80;
+    background: #0f1924; min-height: 50px; }
+  ul.list { list-style: none; padding: 0; margin: 12px 0 0; }
+  ul.list li { background: var(--card); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px;
+    display: flex; flex-direction: column; cursor: pointer; }
+  ul.list li:active { background: var(--card2); }
+  ul.list li.empty { background: transparent; color: var(--muted); cursor: default; text-align: center; }
+  .nm { font-weight: 600; font-size: 1.1rem; }
+  .pv { color: var(--muted); font-size: .95rem; margin-top: 2px; }
+  h2 { margin: 4px 0 4px; font-size: 1.5rem; }
+  .cmt { color: var(--muted); margin: 0 0 8px; white-space: pre-wrap; }
+  .tones { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .tone { display: flex; flex-direction: column; align-items: center; padding: 16px 8px; min-height: 140px;
+    background: var(--card); transition: background .15s, transform .1s; }
+  .tone .reg { color: var(--muted); font-size: .95rem; text-transform: uppercase; letter-spacing: .05em; }
+  .tone .nt { font-size: 2.8rem; font-weight: 700; line-height: 1.2; margin: 4px 0; }
+  .tone .sci { color: var(--muted); font-size: .85rem; }
+  .tone.flash { background: var(--accent); color: #1b1b1b; transform: scale(.97); }
+  .tone.flash .reg, .tone.flash .sci { color: #333; }
+  .tone:disabled { opacity: .4; }
+  .field { margin-top: 14px; }
+  .field label { display: block; color: var(--muted); margin-bottom: 4px; font-size: .95rem; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row select { flex: 1; }
+  .row button { min-width: 56px; }
+  textarea { width: 100%; min-height: 60px; padding: 12px; border-radius: var(--radius); border: 1px solid #3c5a80;
+    background: #0f1924; color: inherit; font: inherit; }
+  .hint { color: var(--muted); font-size: .9rem; margin-top: 18px; }
+  .hint code { background: #0f1924; padding: 1px 5px; border-radius: 4px; }
+  input[type=range] { width: 100%; }
+  dialog { border: 0; border-radius: var(--radius); background: var(--card); color: var(--fg); max-width: 92vw; padding: 20px; }
+  dialog::backdrop { background: #000a; }
+  dialog .btns { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #000d; color: #fff;
+    padding: 10px 18px; border-radius: 20px; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90vw; }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <button id="back" class="icon hidden" aria-label="Zurück">‹</button>
+  <h1 id="title">Chor anstimmen</h1>
+  <button id="btnSettings" class="icon" aria-label="Einstellungen">⚙</button>
+</header>
+<main id="app"></main>
+<input type="file" id="fileIn" hidden>
+<dialog id="dlg"><div id="dlgMsg"></div><div class="btns" id="dlgBtns"></div></dialog>
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* ---------- Konstanten & Notennamen ---------- */
+const REG = [
+  { k: 't1', n: 'Tenor 1', x: 'tenor1' },
+  { k: 't2', n: 'Tenor 2', x: 'tenor2' },
+  { k: 'b1', n: 'Bass 1',  x: 'bass1'  },
+  { k: 'b2', n: 'Bass 2',  x: 'bass2'  },
+];
+const DE = ['C','Cis','D','Es','E','F','Fis','G','As','A','B','H'];
+const EN = ['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
+const MIN = 33, MAX = 81;                  // A1 .. A5
+const DEFAULT_NOTES = { t1: 60, t2: 55, b1: 52, b2: 48 };
+const SKEY = 'chor-anstimmen.songs', CKEY = 'chor-anstimmen.settings';
+
+const octave = m => Math.floor(m / 12) - 1;
+const sciDe = m => DE[m % 12] + octave(m);           // z.B. Fis3
+const sciEn = m => EN[m % 12] + octave(m);           // z.B. F♯3
+function helm(m) {                                    // Helmholtz: C, c, c', c''
+  const o = octave(m), b = DE[m % 12];
+  if (o >= 3) return b.toLowerCase() + "'".repeat(o - 3);
+  if (o === 2) return b;
+  return b + ','.repeat(2 - o);
+}
+/* Akzeptiert deutsche Namen ("Fis3", "Es2", "B2"=B♭, "H2"), "F#3" oder MIDI-Nummer. */
+function parseNote(v) {
+  if (v === null || v === undefined || v === '' || v === '-') return null;
+  if (typeof v === 'number') return Number.isInteger(v) && v >= 0 && v <= 127 ? v : undefined;
+  const s = String(v).trim();
+  if (/^\d+$/.test(s)) return parseNote(+s);
+  const m = s.match(/^([A-Ha-h])(is|es|s|#)?(-?\d)$/);
+  if (!m) return undefined;
+  let pc = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, H: 11, B: 10 }[m[1].toUpperCase()];
+  if (m[2] === 'is' || m[2] === '#') pc++;
+  else if (m[2] === 'es' || m[2] === 's') pc--;
+  return (+m[3] + 1) * 12 + pc;
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+/* ---------- Speicher ---------- */
+let songs = load(SKEY, []);
+let settings = Object.assign({ a4: 440, dur: 3.5, gap: 0.7 }, load(CKEY, {}));
+function load(k, def) { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } }
+const saveSongs = () => localStorage.setItem(SKEY, JSON.stringify(songs));
+const saveSettings = () => localStorage.setItem(CKEY, JSON.stringify(settings));
+const byId = id => songs.find(s => s.id === id);
+const sorted = () => [...songs].sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
+
+/* ---------- Audio: synthetischer Klavierton ---------- */
+let ctx, master;
+const active = new Set();
+function ac() {
+  if (!ctx) {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createDynamicsCompressor();
+    master.threshold.value = -14; master.ratio.value = 4;
+    const g = ctx.createGain(); g.gain.value = 0.9;
+    master.connect(g); g.connect(ctx.destination);
+  }
+  if (ctx.state === 'suspended') ctx.resume();
+  return ctx;
+}
+const freq = m => settings.a4 * Math.pow(2, (m - 69) / 12);
+// Teiltöne (relative Amplitude); tiefe Töne bekommen mehr Obertöne, damit sie auch auf Handylautsprechern hörbar sind
+const PARTIALS = [1, .55, .38, .22, .15, .1, .07, .05, .03, .02];
+function playNote(m, when = 0, vel = 1) {
+  const c = ac(), t = c.currentTime + 0.02 + when, f = freq(m), dur = settings.dur;
+  const out = c.createGain();
+  out.gain.setValueAtTime(1, t);
+  out.gain.setValueAtTime(1, t + dur);
+  out.gain.linearRampToValueAtTime(0, t + dur + 0.4);
+  const lp = c.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(Math.min(f * 14, 10000), t);
+  lp.frequency.exponentialRampToValueAtTime(Math.max(f * 4, 900), t + dur);
+  out.connect(lp); lp.connect(master);
+  const bassBoost = f < 200 ? 1.4 : 1;
+  PARTIALS.forEach((a, i) => {
+    const n = i + 1, pf = f * n * Math.sqrt(1 + 0.0003 * n * n);   // leichte Inharmonizität wie bei Klaviersaiten
+    if (pf > 14000) return;
+    const amp = a * (i > 0 ? bassBoost : 1) * 0.22 * vel;
+    const decay = dur / (1.6 + i * 0.5);
+    for (const det of (i < 2 ? [-0.6, 0.6] : [0])) {            // zwei leicht verstimmte Saiten für Grundton & Oktave
+      const o = c.createOscillator(), g = c.createGain();
+      o.frequency.value = pf; o.detune.value = det;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(amp / (det ? 2 : 1), t + 0.006);
+      g.gain.setTargetAtTime(0, t + 0.006, decay);
+      o.connect(g); g.connect(out);
+      o.start(t); o.stop(t + dur + 0.5);
+    }
+  });
+  active.add(out);
+  setTimeout(() => active.delete(out), (when + dur + 0.6) * 1000);
+}
+function stopAll() {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  active.forEach(g => { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + 0.08); });
+  active.clear();
+  document.querySelectorAll('.tone.flash').forEach(b => b.classList.remove('flash'));
+}
+function flash(el, delay = 0) {
+  if (!el) return;
+  setTimeout(() => { el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 600); }, delay * 1000);
+}
+
+/* ---------- UI-Helfer ---------- */
+const app = document.getElementById('app');
+const $ = sel => app.querySelector(sel);
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2500);
+}
+function ask(msg, buttons) {           // buttons: [{label, value, cls}]
+  return new Promise(res => {
+    const d = document.getElementById('dlg');
+    document.getElementById('dlgMsg').innerHTML = msg;
+    const box = document.getElementById('dlgBtns'); box.innerHTML = '';
+    buttons.forEach(b => {
+      const el = document.createElement('button');
+      el.textContent = b.label; if (b.cls) el.className = b.cls;
+      el.onclick = () => { d.close(); res(b.value); };
+      box.appendChild(el);
+    });
+    d.oncancel = () => res(null);
+    d.showModal();
+  });
+}
+function setHeader(title, back) {
+  document.getElementById('title').textContent = title;
+  document.getElementById('back').classList.toggle('hidden', !back);
+}
+
+/* ---------- Navigation (unterstützt Android-Zurück-Taste) ---------- */
+function go(v, replace) { history[replace ? 'replaceState' : 'pushState'](v, ''); render(v); }
+window.addEventListener('popstate', e => render(e.state || { name: 'list' }));
+document.getElementById('back').onclick = () => history.back();
+document.getElementById('btnSettings').onclick = () => go({ name: 'settings' });
+function render(v) {
+  stopAll();
+  window.scrollTo(0, 0);
+  ({ list: renderList, song: renderSong, edit: renderEdit, settings: renderSettings }[v.name] || renderList)(v);
+}
+
+/* ---------- Ansicht: Liederliste ---------- */
+let query = '';
+function renderList() {
+  setHeader('Chor anstimmen', false);
+  app.innerHTML = `
+    <input id="search" type="search" placeholder="Lied suchen …" value="${esc(query)}">
+    <ul class="list" id="songList"></ul>
+    <button class="primary big" id="add">+ Neues Lied</button>
+    <div class="bar"><button id="exp">⇪ Exportieren</button><button id="imp">⇩ Importieren</button></div>`;
+  const fill = () => {
+    const q = query.toLowerCase();
+    const list = sorted().filter(s => s.name.toLowerCase().includes(q));
+    $('#songList').innerHTML = list.map(s => `
+      <li data-id="${s.id}"><span class="nm">${esc(s.name)}</span>
+      <span class="pv">${REG.map(r => s.notes[r.k] != null ? helm(s.notes[r.k]) : '–').join(' · ')}</span></li>`).join('')
+      || `<li class="empty">${songs.length ? 'Kein Lied gefunden.' : 'Noch keine Lieder. Tippe auf „+ Neues Lied“.'}</li>`;
+  };
+  fill();
+  $('#search').oninput = e => { query = e.target.value; fill(); };
+  $('#songList').onclick = e => { const li = e.target.closest('li[data-id]'); if (li) go({ name: 'song', id: li.dataset.id }); };
+  $('#add').onclick = () => go({ name: 'edit', id: null });
+  $('#exp').onclick = exportSongs;
+  $('#imp').onclick = () => document.getElementById('fileIn').click();
+}
+
+/* ---------- Ansicht: Lied (Töne abspielen) ---------- */
+function renderSong(v) {
+  const s = byId(v.id);
+  if (!s) return go({ name: 'list' }, true);
+  setHeader(s.name, true);
+  app.innerHTML = `
+    <h2>${esc(s.name)}</h2>
+    ${s.comment ? `<p class="cmt">${esc(s.comment)}</p>` : ''}
+    <div class="tones">${REG.map(r => {
+      const m = s.notes[r.k];
+      return `<button class="tone" data-k="${r.k}" ${m == null ? 'disabled' : ''}>
+        <span class="reg">${r.n}</span>
+        <span class="nt">${m == null ? '–' : esc(helm(m))}</span>
+        <span class="sci">${m == null ? 'kein Ton' : sciDe(m) + ' · ' + sciEn(m)}</span></button>`;
+    }).join('')}</div>
+    <button class="primary big" id="all">♫ Alle zusammen</button>
+    <div class="bar"><button id="arp">Nacheinander ↑</button><button id="stop">■ Stopp</button></div>
+    <div class="bar"><button id="edit">✎ Bearbeiten</button><button class="danger" id="del">Löschen</button></div>`;
+  const btn = k => $(`.tone[data-k="${k}"]`);
+  const present = REG.filter(r => s.notes[r.k] != null);
+  app.querySelectorAll('.tone').forEach(b => b.onclick = () => {
+    const m = s.notes[b.dataset.k]; if (m == null) return;
+    playNote(m); flash(b);
+  });
+  $('#all').onclick = () => {
+    stopAll();
+    present.forEach(r => { playNote(s.notes[r.k], 0, 0.6); flash(btn(r.k)); });
+  };
+  $('#arp').onclick = () => {
+    stopAll();
+    [...present].sort((a, b) => s.notes[a.k] - s.notes[b.k]).forEach((r, i) => {
+      playNote(s.notes[r.k], i * settings.gap, 0.8); flash(btn(r.k), i * settings.gap);
+    });
+  };
+  $('#stop').onclick = stopAll;
+  $('#edit').onclick = () => go({ name: 'edit', id: s.id });
+  $('#del').onclick = async () => {
+    const ok = await ask(`Lied <b>${esc(s.name)}</b> wirklich löschen?`,
+      [{ label: 'Löschen', value: true, cls: 'danger' }, { label: 'Abbrechen', value: false }]);
+    if (!ok) return;
+    songs = songs.filter(x => x.id !== s.id); saveSongs();
+    toast('Gelöscht'); history.back();
+  };
+}
+
+/* ---------- Ansicht: Lied bearbeiten / neu ---------- */
+function noteOptions(sel) {
+  let o = `<option value="" ${sel == null ? 'selected' : ''}>– kein Ton –</option>`;
+  for (let m = MAX; m >= MIN; m--)
+    o += `<option value="${m}" ${m === sel ? 'selected' : ''}>${esc(helm(m))}   (${sciDe(m)} / ${sciEn(m)})</option>`;
+  return o;
+}
+function renderEdit(v) {
+  const s = v.id ? byId(v.id) : null;
+  if (v.id && !s) return go({ name: 'list' }, true);
+  const notes = s ? s.notes : DEFAULT_NOTES;
+  setHeader(s ? 'Lied bearbeiten' : 'Neues Lied', true);
+  app.innerHTML = `
+    <div class="field"><label for="nm">Liedname</label>
+      <input id="nm" type="text" value="${esc(s ? s.name : '')}" placeholder="z.B. Der Mond ist aufgegangen"></div>
+    ${REG.map(r => `
+      <div class="field"><label>${r.n}</label>
+        <div class="row"><select data-k="${r.k}">${noteOptions(notes[r.k])}</select>
+        <button data-play="${r.k}" aria-label="Probehören">▶</button></div></div>`).join('')}
+    <div class="field"><label for="cmt">Bemerkung (optional, z.B. Tonart)</label>
+      <textarea id="cmt">${esc(s ? s.comment || '' : '')}</textarea></div>
+    <div class="bar"><button id="cancel">Abbrechen</button><button class="primary" id="save">Speichern</button></div>`;
+  const val = k => { const x = $(`select[data-k="${k}"]`).value; return x === '' ? null : +x; };
+  app.querySelectorAll('[data-play]').forEach(b => b.onclick = () => { const m = val(b.dataset.play); if (m != null) playNote(m); });
+  app.querySelectorAll('select').forEach(sel => sel.onchange = () => { const m = val(sel.dataset.k); if (m != null) { stopAll(); playNote(m); } });
+  $('#cancel').onclick = () => history.back();
+  $('#save').onclick = () => {
+    const name = $('#nm').value.trim();
+    if (!name) { toast('Bitte einen Liednamen eingeben'); $('#nm').focus(); return; }
+    const dup = songs.find(x => x.name.toLowerCase() === name.toLowerCase() && (!s || x.id !== s.id));
+    if (dup) { toast('Ein Lied mit diesem Namen existiert bereits'); return; }
+    const data = { name, comment: $('#cmt').value.trim(), notes: Object.fromEntries(REG.map(r => [r.k, val(r.k)])) };
+    if (s) { Object.assign(s, data); saveSongs(); toast('Gespeichert'); history.back(); }
+    else { const n = { id: uid(), ...data }; songs.push(n); saveSongs(); toast('Gespeichert'); go({ name: 'song', id: n.id }, true); }
+  };
+  if (!s) $('#nm').focus();
+}
+
+/* ---------- Ansicht: Einstellungen ---------- */
+function renderSettings() {
+  setHeader('Einstellungen', true);
+  app.innerHTML = `
+    <div class="field"><label for="a4">Stimmton a' (Hz)</label>
+      <div class="row"><input id="a4" type="number" min="415" max="466" step="1" value="${settings.a4}">
+      <button id="testA">▶ a'</button></div></div>
+    <div class="field"><label for="dur">Tondauer: <b id="durV">${settings.dur}</b> s</label>
+      <input id="dur" type="range" min="1" max="10" step="0.5" value="${settings.dur}"></div>
+    <div class="field"><label for="gap">Abstand bei „Nacheinander“: <b id="gapV">${settings.gap}</b> s</label>
+      <input id="gap" type="range" min="0.2" max="2" step="0.1" value="${settings.gap}"></div>
+    <div class="bar"><button id="exp">⇪ Exportieren</button><button id="imp">⇩ Importieren</button></div>
+    <p class="hint">${songs.length} Lieder gespeichert. Die Daten liegen lokal auf diesem Gerät.
+      Exportiere sie regelmässig als Sicherung oder um sie auf ein anderes Handy zu übertragen.</p>
+    <p class="hint">Format der Config-Datei (JSON): Töne als deutsche Notennamen mit Oktavzahl,
+      z.B. <code>"Fis3"</code>, <code>"B2"</code> (=B♭), <code>"H2"</code>, <code>"Es3"</code>; c' = <code>C4</code>.</p>`;
+  $('#a4').onchange = e => { const x = +e.target.value; if (x >= 415 && x <= 466) { settings.a4 = x; saveSettings(); } else e.target.value = settings.a4; };
+  $('#testA').onclick = () => playNote(69);
+  $('#dur').oninput = e => { settings.dur = +e.target.value; $('#durV').textContent = settings.dur; saveSettings(); };
+  $('#gap').oninput = e => { settings.gap = +e.target.value; $('#gapV').textContent = settings.gap; saveSettings(); };
+  $('#exp').onclick = exportSongs;
+  $('#imp').onclick = () => document.getElementById('fileIn').click();
+}
+
+/* ---------- Export / Import ---------- */
+async function exportSongs() {
+  if (!songs.length) { toast('Keine Lieder zum Exportieren'); return; }
+  const data = {
+    app: 'chor-anstimmen', version: 1, exportiert: new Date().toISOString(),
+    stimmton_a4: settings.a4,
+    lieder: sorted().map(s => ({
+      name: s.name,
+      ...Object.fromEntries(REG.map(r => [r.x, s.notes[r.k] == null ? null : sciDe(s.notes[r.k])])),
+      ...(s.comment ? { bemerkung: s.comment } : {}),
+    })),
+  };
+  const fname = `chor-lieder-${new Date().toISOString().slice(0, 10)}.json`;
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const file = new File([blob], fname, { type: 'application/json' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    const how = await ask('Wie möchtest du die Lieder exportieren?',
+      [{ label: 'Teilen (Mail, WhatsApp, Drive …)', value: 'share', cls: 'primary' },
+       { label: 'Als Datei herunterladen', value: 'dl' }, { label: 'Abbrechen', value: null }]);
+    if (!how) return;
+    if (how === 'share') {
+      try { await navigator.share({ files: [file], title: 'Chor-Lieder' }); } catch (e) { if (e.name !== 'AbortError') toast('Teilen fehlgeschlagen'); }
+      return;
+    }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = fname;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast(`Exportiert: ${fname}`);
+}
+
+document.getElementById('fileIn').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  let data;
+  try { data = JSON.parse(await f.text()); } catch { return ask('Die Datei ist keine gültige JSON-Datei.', [{ label: 'OK', value: 1 }]); }
+  const list = Array.isArray(data) ? data : data.lieder;
+  if (!Array.isArray(list)) return ask('In der Datei wurde keine Liederliste („lieder“) gefunden.', [{ label: 'OK', value: 1 }]);
+  const errors = [], imported = [];
+  list.forEach((it, i) => {
+    const name = it && typeof it.name === 'string' ? it.name.trim() : '';
+    if (!name) { errors.push(`Eintrag ${i + 1}: kein Name`); return; }
+    const notes = {};
+    for (const r of REG) {
+      const raw = it[r.x] !== undefined ? it[r.x] : it[r.k];
+      const m = parseNote(raw);
+      if (m === undefined) { errors.push(`${name}: ${r.n} „${raw}“ unbekannt`); notes[r.k] = null; }
+      else notes[r.k] = m;
+    }
+    imported.push({ name, notes, comment: typeof it.bemerkung === 'string' ? it.bemerkung : '' });
+  });
+  if (!imported.length) return ask('Keine gültigen Lieder gefunden.<br>' + errors.map(esc).join('<br>'), [{ label: 'OK', value: 1 }]);
+  const errHtml = errors.length ? `<p style="color:#f6a">Warnungen:<br>${errors.slice(0, 8).map(esc).join('<br>')}${errors.length > 8 ? '<br>…' : ''}</p>` : '';
+  const mode = await ask(`<b>${imported.length}</b> Lieder in der Datei gefunden.${errHtml}`, [
+    { label: 'Zusammenführen (gleiche Namen überschreiben)', value: 'merge', cls: 'primary' },
+    { label: 'Alle bestehenden Lieder ersetzen', value: 'replace', cls: 'danger' },
+    { label: 'Abbrechen', value: null }]);
+  if (!mode) return;
+  if (mode === 'replace') songs = [];
+  for (const n of imported) {
+    const ex = songs.find(s => s.name.toLowerCase() === n.name.toLowerCase());
+    if (ex) Object.assign(ex, n); else songs.push({ id: uid(), ...n });
+  }
+  if (typeof data.stimmton_a4 === 'number' && data.stimmton_a4 >= 415 && data.stimmton_a4 <= 466 && data.stimmton_a4 !== settings.a4) {
+    const take = await ask(`Die Datei verwendet a' = ${data.stimmton_a4} Hz (aktuell ${settings.a4} Hz). Übernehmen?`,
+      [{ label: 'Übernehmen', value: true, cls: 'primary' }, { label: 'Nein', value: false }]);
+    if (take) { settings.a4 = data.stimmton_a4; saveSettings(); }
+  }
+  saveSongs();
+  toast(`${imported.length} Lieder importiert`);
+  go({ name: 'list' }, true);
+};
+
+/* ---------- Start ---------- */
+history.replaceState({ name: 'list' }, '');
+render({ name: 'list' });
+if ('serviceWorker' in navigator && location.protocol.startsWith('http'))
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
